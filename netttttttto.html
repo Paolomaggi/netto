@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portale Pazienti</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .input-section, .calendar-section, .total-section {
+            margin-bottom: 20px;
+        }
+        input[type="text"], input[type="number"] {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .add-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        .patient-btn {
+            transition: all 0.3s;
+        }
+        .patient-list, .total-section {
+            margin-top: 20px;
+        }
+        .patient-list div {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            text-align: center;
+        }
+        .calendar div {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .calendar-header {
+            font-weight: bold;
+            background-color: #007bff;
+            color: white;
+        }
+        .month-selector {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Portale Pazienti</h1>
+        <div class="input-section">
+            <input type="text" id="patientName" placeholder="Nome Paziente">
+            <input type="number" id="sessionPrice" placeholder="Prezzo Seduta (€)">
+            <button class="add-btn" onclick="addPatient()">Aggiungi Paziente</button>
+        </div>
+        <div id="patientButtons"></div>
+        <div class="patient-list" id="patientList"></div>
+        <div class="total-section">
+            <h3>Totale Mensile: <span id="monthlyTotal">0 €</span></h3>
+            <h3>Totale Complessivo: <span id="overallTotal">0 €</span></h3>
+        </div>
+        <div class="calendar-section">
+            <h3>Calendario</h3>
+            <div class="month-selector">
+                <button onclick="prevMonth()">◄</button>
+                <span id="monthYear"></span>
+                <button onclick="nextMonth()">►</button>
+            </div>
+            <div class="calendar" id="calendar"></div>
+        </div>
+    </div>
+
+    <script>
+        let patients = JSON.parse(localStorage.getItem('patients')) || [];
+        let sessions = JSON.parse(localStorage.getItem('sessions')) || [];
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+        const months = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+
+        function generateColor(index) {
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeead', '#d4a5a5', '#9b59b6', '#3498db'];
+            return colors[index % colors.length];
+        }
+
+        function addPatient() {
+            const name = document.getElementById('patientName').value.trim();
+            const price = parseFloat(document.getElementById('sessionPrice').value);
+            if (name && price > 0) {
+                patients.push({ name, price, color: generateColor(patients.length) });
+                localStorage.setItem('patients', JSON.stringify(patients));
+                document.getElementById('patientName').value = '';
+                document.getElementById('sessionPrice').value = '';
+                updatePatientButtons();
+                updatePatientList();
+            } else {
+                alert('Inserisci un nome valido e un prezzo positivo.');
+            }
+        }
+
+        function addSession(patientIndex) {
+            const patient = patients[patientIndex];
+            sessions.push({
+                patient: patient.name,
+                price: patient.price,
+                date: new Date().toISOString(),
+                month: new Date().getMonth(),
+                year: new Date().getFullYear()
+            });
+            localStorage.setItem('sessions', JSON.stringify(sessions));
+            updatePatientList();
+            updateTotals();
+        }
+
+        function updatePatientButtons() {
+            const buttonsDiv = document.getElementById('patientButtons');
+            buttonsDiv.innerHTML = '';
+            patients.forEach((patient, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'patient-btn';
+                btn.textContent = patient.name;
+                btn.style.border = `3px solid ${patient.color}`;
+                btn.style.background = `linear-gradient(145deg, ${patient.color}22, #fff)`;
+                btn.onclick = () => addSession(index);
+                buttonsDiv.appendChild(btn);
+            });
+        }
+
+        function updatePatientList() {
+            const listDiv = document.getElementById('patientList');
+            listDiv.innerHTML = '<h3>Elenco Sedute</h3>';
+            sessions.forEach(session => {
+                const div = document.createElement('div');
+                div.textContent = `${session.patient} - ${session.price} € (${new Date(session.date).toLocaleDateString('it-IT')})`;
+                listDiv.appendChild(div);
+            });
+        }
+
+        function updateTotals() {
+            const monthlySessions = sessions.filter(s => s.month === currentMonth && s.year === currentYear);
+            const monthlyTotal = monthlySessions.reduce((sum, s) => sum + s.price, 0);
+            const overallTotal = sessions.reduce((sum, s) => sum + s.price, 0);
+            document.getElementById('monthlyTotal').textContent = `${monthlyTotal} €`;
+            document.getElementById('overallTotal').textContent = `${overallTotal} €`;
+        }
+
+        function renderCalendar() {
+            const calendarDiv = document.getElementById('calendar');
+            const monthYearSpan = document.getElementById('monthYear');
+            calendarDiv.innerHTML = '';
+            monthYearSpan.textContent = `${months[currentMonth]} ${currentYear}`;
+
+            const days = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+            days.forEach(day => {
+                const div = document.createElement('div');
+                div.className = 'calendar-header';
+                div.textContent = day;
+                calendarDiv.appendChild(div);
+            });
+
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const offset = firstDay === 0 ? 6 : firstDay - 1;
+
+            for (let i = 0; i < offset; i++) {
+                const div = document.createElement('div');
+                calendarDiv.appendChild(div);
+            }
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const div = document.createElement('div');
+                div.textContent = i;
+                calendarDiv.appendChild(div);
+            }
+
+            updateTotals();
+        }
+
+        function prevMonth() {
+            if (currentMonth === 0 && currentYear === 2025) return;
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar();
+        }
+
+        function nextMonth() {
+            if (currentMonth === 11 && currentYear === 2025) return;
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar();
+        }
+
+        // Inizializzazione
+        updatePatientButtons();
+        updatePatientList();
+        renderCalendar();
+    </script>
+</body>
+</html>
